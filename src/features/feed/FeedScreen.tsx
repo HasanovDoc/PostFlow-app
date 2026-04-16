@@ -1,12 +1,20 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState, useMemo } from "react";
 import { FlatList, RefreshControl, ActivityIndicator, View, StyleSheet } from "react-native";
 import { observer } from "mobx-react-lite";
 import { useFeed } from "./hooks/useFeed";
 import PostCard from "./components/PostCard";
 import ErrorView from "../../shared/ui/ErrorView";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Tabs, { TabOption } from "../../shared/ui/Tabs";
+
+const FEED_TABS: TabOption[] = [
+  { label: "Все", value: "all" },
+  { label: "Бесплатные", value: "free" },
+  { label: "Платные", value: "paid" },
+];
 
 export const FeedScreen = observer(() => {
+  const [filter, setFilter] = useState<"all" | "free" | "paid">("all");
   const { 
     data, 
     fetchNextPage, 
@@ -18,8 +26,12 @@ export const FeedScreen = observer(() => {
     isRefetching 
   } = useFeed();
 
-  const posts = data?.pages.flatMap((p) => p.items) ?? [];
-  console.log(posts);
+  const allPosts = useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data]);
+
+  const filteredPosts = useMemo(() => {
+    if (filter === "all") return allPosts;
+    return allPosts.filter(post => post.tier === filter);
+  }, [allPosts, filter]);
   
   const onEndReached = useCallback(() => {
     if (!isFetchingNextPage && hasNextPage) {
@@ -31,8 +43,13 @@ export const FeedScreen = observer(() => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <Tabs 
+        options={FEED_TABS} 
+        activeValue={filter} 
+        onChange={setFilter} 
+      />
       <FlatList
-        data={posts}
+        data={filteredPosts}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <PostCard post={item} />}
         onEndReached={onEndReached}

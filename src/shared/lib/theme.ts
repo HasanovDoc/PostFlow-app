@@ -7,6 +7,13 @@ export const tokens = {
     error: '#FF3B30',
     border: '#E5E5E5',
     accent: '#007AFF',
+    brand: '#6115CD',
+    brandText: '#FFFFFF',
+    brandDark: '#480CA8',
+    brandLight: '#E9D8FD',
+    like: '#FF4D67',
+    inputBg: '#F0F2F5',
+    unselectedText: '#666666',
   },
   spacing: {
     xs: 4,

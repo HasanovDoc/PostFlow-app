@@ -1,15 +1,21 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { tokens } from '../lib/theme';
+import PaidIcon from '../assets/PaidIcon';
 
 export default function LockedPost() {
   return (
     <View style={styles.container}>
-      <Text style={styles.lockIcon}>🔒</Text>
-      <Text style={styles.title}>Эксклюзивный контент</Text>
-      <Text style={styles.subtitle}>Этот пост доступен только платным подписчикам</Text>
-      <View style={styles.buttonPlaceholder}>
-        <Text style={styles.buttonText}>Подписаться</Text>
+      <View style={styles.overlay}>
+        <View style={styles.lockCircle}>
+          <PaidIcon />
+        </View>
+        
+        <Text style={styles.title}>Контент скрыт пользователем. Доступ откроется после доната</Text>
+        
+        <TouchableOpacity style={styles.button}>
+          <Text style={styles.buttonText}>Отправить донат</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -17,29 +23,49 @@ export default function LockedPost() {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: tokens.colors.surface, // Используем токены
-    borderRadius: tokens.radius.md,
-    padding: tokens.spacing.lg,
+    width: '100%',
+    aspectRatio: 16 / 9,
+    backgroundColor: '#2A2E32',
+    overflow: 'hidden',
+  },
+  overlay: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: tokens.spacing.sm,
-    borderWidth: 1,
-    borderColor: tokens.colors.border,
-    borderStyle: 'dashed',
+    padding: tokens.spacing.md,
   },
-  lockIcon: { fontSize: 24, marginBottom: tokens.spacing.sm },
-  title: { fontSize: 16, fontWeight: '700', color: tokens.colors.primary },
-  subtitle: { 
-    fontSize: 12, 
-    color: tokens.colors.secondary, 
-    textAlign: 'center', 
-    marginTop: tokens.spacing.xs 
+  lockCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 10,
+    backgroundColor: tokens.colors.brand,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  buttonPlaceholder: {
-    marginTop: tokens.spacing.md,
-    backgroundColor: tokens.colors.primary,
-    paddingVertical: 8,
-    paddingHorizontal: tokens.spacing.lg,
-    borderRadius: tokens.radius.round,
+  title: {
+    maxWidth: 236,
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 20,
+    color: tokens.colors.brandText,
+    marginBottom: 13,
+    textAlign: 'center',
   },
-  buttonText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  button: {
+    width: 239,
+    height: 42,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: tokens.colors.brand,
+    paddingVertical: tokens.spacing.sm,
+    paddingHorizontal: 56.5,
+    borderRadius: 14,
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
 });

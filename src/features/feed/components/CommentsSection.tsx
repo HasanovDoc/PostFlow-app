@@ -1,68 +1,75 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Image, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Image, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
 import { tokens } from '../../../shared/lib/theme';
 import { fetchComments, Comment, sendComment } from '../api/feedApi';
 import Input from '../../../shared/ui/Input';
 import { WS_URL } from '../../../shared/lib/api';
+import PostCard from './PostCard';
 
 type SortOrder = 'new' | 'old';
 
-export default function CommentsSection({ postId, totalCount }: { postId: string, totalCount: number }) {
+export default function CommentsSection({ 
+  postId,
+  totalCount,
+  postData
+}: { 
+  postId: string,
+  totalCount: number,
+  postData: any
+}) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [commentText, setCommentText] = useState('');
   const [sortOrder, setSortOrder] = useState<SortOrder>('new');
   const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
+  
   const ws = useRef<WebSocket | null>(null);
 
-  useEffect(() => {
-    const loadComments = async () => {
-      try {
-        const data = await fetchComments(postId);
+  const loadComments = async (cursor?: string) => {
+    try {
+      const data = await fetchComments(postId, cursor);
+      
+      if (cursor) {
+        setComments(prev => [...prev, ...data.items]);
+      } else {
         setComments(data.items);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setIsLoading(false);
       }
-    };
+      setNextCursor(data.nextCursor);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+      setIsFetchingMore(false);
+    }
+  };
+
+  useEffect(() => {
     loadComments();
+    const socket = new WebSocket(WS_URL);
+    ws.current = socket;
 
-    ws.current = new WebSocket(WS_URL);
-
-    ws.current.onmessage = (e) => {
+    socket.onmessage = (e) => {
       try {
-        const message = JSON.parse(e.data);
-
-        if (message && message.type === 'comment_added') {
-          const newComment = message.comment;
-
-          if (newComment && newComment.postId === postId) {
-            const formattedComment: Comment = {
-              id: newComment.id,
-              postId: newComment.postId,
-              text: newComment.text,
-              author: {
-                name: newComment.author.displayName,
-                avatar: newComment.author.avatarUrl
-              },
-              createdAt: newComment.createdAt
-            };
-
-            setComments(prev => [formattedComment, ...prev]);
-          }
+        const data = JSON.parse(e.data);
+        if (data.type === 'new_comment' && data.payload) {
+          setComments(prev => {
+            if (prev.some(c => c.id === data.payload.id)) return prev;
+            return [data.payload, ...prev];
+          });
         }
       } catch (err) {
-        console.error("WS Message Error:", err);
+        console.warn("WS parsing error:", err);
       }
     };
 
-    return () => ws.current?.close();
+    return () => {
+      if (socket) socket.close();
+    };
   }, [postId]);
 
   const handleSend = async () => {
     if (!commentText.trim()) return;
-
     try {
       const textToSend = commentText.trim();
       setCommentText('');
@@ -76,18 +83,12 @@ export default function CommentsSection({ postId, totalCount }: { postId: string
     setSortOrder(prev => (prev === 'new' ? 'old' : 'new'));
   };
 
-  const loadMoreComments = useCallback(async () => {
-    if (isFetchingMore) return;
-    setIsFetchingMore(true);
-    try {
-      const data = await fetchComments(postId);
-      setComments(prevComments => [...prevComments, ...data.items]);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsFetchingMore(false);
+  const handleLoadMore = () => {
+    if (nextCursor && !isFetchingMore) {
+      setIsFetchingMore(true);
+      loadComments(nextCursor);
     }
-  }, [postId, isFetchingMore]);
+  };
 
   const sortedComments = useMemo(() => {
     return [...comments].sort((a, b) => {
@@ -110,47 +111,56 @@ export default function CommentsSection({ postId, totalCount }: { postId: string
   if (isLoading) return <ActivityIndicator style={{ margin: 20 }} color={tokens.colors.brand} />;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.countText}>{totalCount} комментариев</Text>
-        
-        <TouchableOpacity onPress={toggleSort} activeOpacity={0.7}>
-          <Text style={styles.sortButton}>
-            {sortOrder === 'new' ? 'Сначала новые' : 'Сначала старые'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.list}>
+    <KeyboardAvoidingView 
+      style={{ flex: 1 }} 
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0} 
+    >
+      <View style={styles.container}>
         <FlatList
-          style={styles.flatlist}
           data={sortedComments}
+          keyExtractor={(item) => item.id}
           renderItem={renderItem}
-          keyExtractor={(item) => item.id.toString()}
-          contentContainerStyle={styles.list}
-          onEndReached={loadMoreComments}
-          onEndReachedThreshold={0.5}
-          ListFooterComponent={isFetchingMore ? <ActivityIndicator size="small" color={tokens.colors.brand} /> : null}
+          ListHeaderComponent={
+            <View>
+              <PostCard post={postData} />
+              <View style={styles.header}>
+                <Text style={styles.countText}>{totalCount} комментариев</Text>
+                <TouchableOpacity onPress={toggleSort}>
+                  <Text style={styles.sortButton}>
+                    {sortOrder === 'new' ? 'Сначала новые' : 'Сначала старые'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          }
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            isFetchingMore ? <ActivityIndicator style={{ marginVertical: 10 }} color={tokens.colors.brand} /> : null
+          }
+          ListEmptyComponent={
+            !isLoading ? <Text style={styles.emptyText}>Комментариев пока нет</Text> : null
+          }
         />
+
+        <View style={styles.inputWrapper}>
+          <Input 
+            placeholder="Ваш комментарий" 
+            value={commentText}
+            onChangeText={setCommentText}
+            onSend={handleSend}
+          />
+        </View>
       </View>
-      
-      <View style={styles.inputWrapper}>
-        <Input 
-          placeholder="Ваш комментарий" 
-          value={commentText}
-          onChangeText={setCommentText}
-          onSend={handleSend}
-        />
-      </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     backgroundColor: tokens.colors.background,
-    borderTopWidth: 1,
-    borderTopColor: tokens.colors.border,
   },
   header: {
     flexDirection: 'row',
@@ -169,15 +179,11 @@ const styles = StyleSheet.create({
     color: tokens.colors.brand,
     fontWeight: '600',
   },
-  list: {
-    maxHeight: 232,
-    paddingHorizontal: tokens.spacing.md,
-    overflow: 'scroll',
-  },
   commentItem: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
+    alignItems: 'flex-start',
+    paddingVertical: 12,
+    paddingHorizontal: tokens.spacing.md,
   },
   avatar: {
     width: 40,
@@ -188,25 +194,32 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     marginLeft: 10,
+    
   },
   authorName: {
     fontWeight: '700',
     fontSize: 15,
-    lineHeight: 20,
     color: tokens.colors.blackText,
+    marginBottom: 2,
   },
   text: {
     fontWeight: '500',
     fontSize: 14,
     color: tokens.colors.blackText,
-    lineHeight: 20,
+    lineHeight: 18,
   },
-  flatlist: {
-    // flex: 1
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 30,
+    color: tokens.colors.secondary,
+    fontSize: 14,
   },
   inputWrapper: {
-    padding: tokens.spacing.md,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
     borderTopWidth: 1,
     borderTopColor: tokens.colors.border,
+    backgroundColor: tokens.colors.background,
+    paddingBottom: Platform.OS === 'android' ? 40 : tokens.spacing.sm,
   }
 });

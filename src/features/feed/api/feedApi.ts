@@ -61,7 +61,7 @@ export async function likePost(postId: string): Promise<void> {
 
 export async function fetchComments(postId: string, cursor?: string) {
   const response = await apiFetch(`/posts/${postId}/comments`, {
-    params: { cursor, limit: 200 }
+    params: { cursor, limit: 10 }
   });
   return {
     items: response.data.comments.map((c: any) => ({

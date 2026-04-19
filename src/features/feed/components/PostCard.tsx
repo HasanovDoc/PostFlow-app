@@ -6,13 +6,13 @@ import { useState } from "react";
 import LikeButton from "../../../shared/ui/LikeButton";
 import { likePost } from "../api/feedApi";
 import CommentButton from "@/shared/ui/CommentButton";
-import CommentsSection from "./CommentsSection";
+import { useNavigation } from "@react-navigation/native";
 
 export default function PostCard({ post }: { post: Post }) {
+  const navigation = useNavigation<any>();
   const [showFullText, setShowFullText] = useState(false);
   const [isLiked, setIsLiked] = useState(post.isLiked);
   const [likes, setLikes] = useState(post.likes);
-  const [showComments, setShowComments] = useState(false);
 
   const handleShowMore = () => {
     setShowFullText(true);
@@ -30,6 +30,12 @@ export default function PostCard({ post }: { post: Post }) {
     }
   };
 
+  const handleCommentPress = () => {
+    navigation.navigate("Comments", {
+      post: post, 
+    });
+  };
+
   const postContent = showFullText ? post.body : post.preview;
 
   return (
@@ -39,13 +45,20 @@ export default function PostCard({ post }: { post: Post }) {
         <Text style={styles.authorName}>{post.author.name}</Text>
       </View>
 
-      {post.cover && (
+      {post.cover && post.tier != "paid" ?(
         <Image source={{ uri: post.cover }} style={styles.cover} />
+      ) : (
+        <LockedPost />
       )}
 
       <View style={styles.content}>
         {post.tier === "paid" ? (
-          <LockedPost />
+          <View>
+            <View style={styles.skeletonTextContainer}>
+              <View style={[styles.skeletonFirstLine, { width: '50%' }]} />
+              <View style={[styles.skeletonSecondLine, { width: '100%' }]} />
+            </View>
+          </View>
         ) : (
           <>
             <Text style={styles.title}>{post.title}</Text>
@@ -60,19 +73,20 @@ export default function PostCard({ post }: { post: Post }) {
           </>
         )}
 
-        <View style={styles.footer}>
-          <LikeButton
-            count={likes}
-            isLiked={isLiked}
-            onPress={handleLike}
-          />
-          <CommentButton 
-            count={post.comments} 
-            onPress={() => setShowComments(!showComments)} 
-          />
-        </View>
+        {post.tier != "paid" && (
+          <View style={styles.footer}>
+            <LikeButton
+              count={likes}
+              isLiked={isLiked}
+              onPress={handleLike}
+            />
+            <CommentButton 
+              count={post.comments} 
+              onPress={handleCommentPress} 
+            />
+          </View>
+        )}
       </View>
-      {showComments && <CommentsSection postId={post.id} totalCount={post.comments} />}
     </View>
   );
 }
@@ -131,8 +145,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: tokens.spacing.md,
   },
-  metrics: {
-    color: tokens.colors.secondary,
-    fontSize: 13,
-  }
+  skeletonTextContainer: {
+    marginTop: tokens.spacing.sm,
+    marginBottom: tokens.spacing.xs,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: tokens.spacing.xs,
+  },
+  skeletonFirstLine: {
+    width: '50%',
+    height: 26,
+    backgroundColor: tokens.colors.surface,
+    borderRadius: 22,
+  },
+  skeletonSecondLine: {
+    width: '100%',
+    height: 40,
+    backgroundColor: tokens.colors.surface,
+    borderRadius: 22,
+  },
 });

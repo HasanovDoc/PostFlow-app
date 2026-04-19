@@ -1,8 +1,9 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Image, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, Image, TouchableOpacity, FlatList } from 'react-native';
 import { tokens } from '../../../shared/lib/theme';
-import { fetchComments, Comment } from '../api/feedApi';
+import { fetchComments, Comment, sendComment } from '../api/feedApi';
 import Input from '../../../shared/ui/Input';
+import { WS_URL } from '../../../shared/lib/api';
 
 type SortOrder = 'new' | 'old';
 
@@ -11,6 +12,8 @@ export default function CommentsSection({ postId, totalCount }: { postId: string
   const [isLoading, setIsLoading] = useState(true);
   const [commentText, setCommentText] = useState('');
   const [sortOrder, setSortOrder] = useState<SortOrder>('new');
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const ws = useRef<WebSocket | null>(null);
 
   useEffect(() => {
     const loadComments = async () => {
@@ -24,12 +27,67 @@ export default function CommentsSection({ postId, totalCount }: { postId: string
       }
     };
     loadComments();
+
+    ws.current = new WebSocket(WS_URL);
+
+    ws.current.onmessage = (e) => {
+      try {
+        const message = JSON.parse(e.data);
+
+        if (message && message.type === 'comment_added') {
+          const newComment = message.comment;
+
+          if (newComment && newComment.postId === postId) {
+            const formattedComment: Comment = {
+              id: newComment.id,
+              postId: newComment.postId,
+              text: newComment.text,
+              author: {
+                name: newComment.author.displayName,
+                avatar: newComment.author.avatarUrl
+              },
+              createdAt: newComment.createdAt
+            };
+
+            setComments(prev => [formattedComment, ...prev]);
+          }
+        }
+      } catch (err) {
+        console.error("WS Message Error:", err);
+      }
+    };
+
+    return () => ws.current?.close();
   }, [postId]);
 
-  // Переключение сортировки
+  const handleSend = async () => {
+    if (!commentText.trim()) return;
+
+    try {
+      const textToSend = commentText.trim();
+      setCommentText('');
+      await sendComment(postId, textToSend);
+    } catch (e) {
+      console.error("Failed to send comment:", e);
+    }
+  }; 
+
   const toggleSort = () => {
     setSortOrder(prev => (prev === 'new' ? 'old' : 'new'));
   };
+
+  const loadMoreComments = useCallback(async () => {
+    if (isFetchingMore) return;
+    setIsFetchingMore(true);
+    try {
+      const data = await fetchComments(postId);
+      setComments(prevComments => [...prevComments, ...data.items]);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsFetchingMore(false);
+    }
+  }, [postId, isFetchingMore]);
 
   const sortedComments = useMemo(() => {
     return [...comments].sort((a, b) => {
@@ -38,6 +96,16 @@ export default function CommentsSection({ postId, totalCount }: { postId: string
       return sortOrder === 'new' ? dateB - dateA : dateA - dateB;
     });
   }, [comments, sortOrder]);
+
+  const renderItem = ({ item }: { item: Comment }) => (
+    <View style={styles.commentItem}>
+      <Image source={{ uri: item.author.avatar }} style={styles.avatar} />
+      <View style={styles.content}>
+        <Text style={styles.authorName}>{item.author.name}</Text>
+        <Text style={styles.text}>{item.text}</Text>
+      </View>
+    </View>
+  );
 
   if (isLoading) return <ActivityIndicator style={{ margin: 20 }} color={tokens.colors.brand} />;
 
@@ -54,15 +122,16 @@ export default function CommentsSection({ postId, totalCount }: { postId: string
       </View>
 
       <View style={styles.list}>
-        {sortedComments.map((item) => (
-          <View key={item.id} style={styles.commentItem}>
-            <Image source={{ uri: item.author.avatar }} style={styles.avatar} />
-            <View style={styles.content}>
-              <Text style={styles.authorName}>{item.author.name}</Text>
-              <Text style={styles.text}>{item.text}</Text>
-            </View>
-          </View>
-        ))}
+        <FlatList
+          style={styles.flatlist}
+          data={sortedComments}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={styles.list}
+          onEndReached={loadMoreComments}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={isFetchingMore ? <ActivityIndicator size="small" color={tokens.colors.brand} /> : null}
+        />
       </View>
       
       <View style={styles.inputWrapper}>
@@ -70,6 +139,7 @@ export default function CommentsSection({ postId, totalCount }: { postId: string
           placeholder="Ваш комментарий" 
           value={commentText}
           onChangeText={setCommentText}
+          onSend={handleSend}
         />
       </View>
     </View>
@@ -130,6 +200,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: tokens.colors.blackText,
     lineHeight: 20,
+  },
+  flatlist: {
+    // flex: 1
   },
   inputWrapper: {
     padding: tokens.spacing.md,

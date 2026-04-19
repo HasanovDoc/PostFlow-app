@@ -61,7 +61,7 @@ export async function likePost(postId: string): Promise<void> {
 
 export async function fetchComments(postId: string, cursor?: string) {
   const response = await apiFetch(`/posts/${postId}/comments`, {
-    params: { cursor, limit: 20 }
+    params: { cursor, limit: 200 }
   });
   return {
     items: response.data.comments.map((c: any) => ({
@@ -81,7 +81,6 @@ export async function fetchComments(postId: string, cursor?: string) {
 export async function sendComment(postId: string, text: string) {
   return apiFetch(`/posts/${postId}/comments`, {
     method: 'POST',
-    // В apiFetch нужно будет добавить поддержку body, если её нет
-    // Либо передать в теле запроса через fetch внутри apiFetch
+    body: { text }
   });
 }

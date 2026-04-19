@@ -12,6 +12,7 @@ export const tokens = {
     brandText: '#FFFFFF',
     brandDark: '#480CA8',
     brandLight: '#E9D8FD',
+    brandInactive: '#D5C9FF',
     like: '#FF4D67',
     inputBg: '#F0F2F5',
     unselectedText: '#666666',

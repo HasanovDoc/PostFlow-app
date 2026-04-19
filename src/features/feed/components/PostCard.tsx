@@ -3,12 +3,28 @@ import { tokens } from "../../../shared/lib/theme";
 import { Post } from "../api/feedApi";
 import LockedPost from "../../../shared/ui/LockedPost";
 import { useState } from "react";
+import LikeButton from "../../../shared/ui/LikeButton";
+import { likePost } from "../api/feedApi";
 
 export default function PostCard({ post }: { post: Post }) {
   const [showFullText, setShowFullText] = useState(false);
+  const [isLiked, setIsLiked] = useState(post.isLiked);
+  const [likes, setLikes] = useState(post.likes);
 
   const handleShowMore = () => {
     setShowFullText(true);
+  };
+
+  const handleLike = async () => {
+    const next = !isLiked;
+    setIsLiked(next);
+    setLikes(prev => prev + (next ? 1 : -1));
+    try {
+      await likePost(post.id);
+    } catch {
+      setIsLiked(!next);
+      setLikes(prev => prev - (next ? 1 : -1));
+    }
   };
 
   const postContent = showFullText ? post.body : post.preview;
@@ -20,7 +36,7 @@ export default function PostCard({ post }: { post: Post }) {
         <Text style={styles.authorName}>{post.author.name}</Text>
       </View>
 
-      {post.cover && post.tier != "paid" &&(
+      {post.cover && (
         <Image source={{ uri: post.cover }} style={styles.cover} />
       )}
 
@@ -32,18 +48,22 @@ export default function PostCard({ post }: { post: Post }) {
             <Text style={styles.title}>{post.title}</Text>
             <Text style={styles.preview} numberOfLines={showFullText ? 0 : 3}>
               {postContent}
-              {post.preview.length > 100 && !showFullText && (
-                <TouchableOpacity onPress={handleShowMore}>
-                  <Text style={styles.showMore}>Показать еще</Text>
-                </TouchableOpacity>
-              )}
             </Text>
+            {post.preview.length > 100 && !showFullText && (
+              <TouchableOpacity onPress={handleShowMore}>
+                <Text style={styles.showMore}>Показать еще</Text>
+              </TouchableOpacity>
+            )}
           </>
         )}
 
         <View style={styles.footer}>
-          <Text style={styles.metrics}>❤️ {post.likes}</Text>
-          <Text style={[styles.metrics, { marginLeft: tokens.spacing.md }]}>💬 {post.comments}</Text>
+          <LikeButton
+            count={likes}
+            isLiked={isLiked}
+            onPress={handleLike}
+          />
+          <Text style={styles.metrics}>💬 {post.comments}</Text>
         </View>
       </View>
     </View>
@@ -100,6 +120,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     flexDirection: 'row',
+    alignItems: 'center',
     marginTop: tokens.spacing.md,
   },
   metrics: {

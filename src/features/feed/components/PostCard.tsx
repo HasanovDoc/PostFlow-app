@@ -48,12 +48,12 @@ export default function PostCard({ post }: { post: Post }) {
             <Text style={styles.title}>{post.title}</Text>
             <Text style={styles.preview} numberOfLines={showFullText ? 0 : 3}>
               {postContent}
+              {post.preview.length > 100 && !showFullText && (
+                <TouchableOpacity onPress={handleShowMore}>
+                  <Text style={styles.showMore}>Показать еще</Text>
+                </TouchableOpacity>
+              )}
             </Text>
-            {post.preview.length > 100 && !showFullText && (
-              <TouchableOpacity onPress={handleShowMore}>
-                <Text style={styles.showMore}>Показать еще</Text>
-              </TouchableOpacity>
-            )}
           </>
         )}
 

@@ -1,17 +1,26 @@
-import { View, Text, Image, StyleSheet } from "react-native";
+import { View, Text, Image, StyleSheet, TouchableOpacity } from "react-native";
 import { tokens } from "../../../shared/lib/theme";
 import { Post } from "../api/feedApi";
 import LockedPost from "../../../shared/ui/LockedPost";
+import { useState } from "react";
 
 export default function PostCard({ post }: { post: Post }) {
+  const [showFullText, setShowFullText] = useState(false);
+
+  const handleShowMore = () => {
+    setShowFullText(true);
+  };
+
+  const postContent = showFullText ? post.body : post.preview;
+
   return (
     <View style={styles.card}>
       <View style={styles.header}>
         <Image source={{ uri: post.author.avatar }} style={styles.avatar} />
         <Text style={styles.authorName}>{post.author.name}</Text>
       </View>
-      
-      {post.cover && (
+
+      {post.cover && post.tier != "paid" &&(
         <Image source={{ uri: post.cover }} style={styles.cover} />
       )}
 
@@ -19,9 +28,19 @@ export default function PostCard({ post }: { post: Post }) {
         {post.tier === "paid" ? (
           <LockedPost />
         ) : (
-          <Text style={styles.preview} numberOfLines={3}>{post.preview}</Text>
+          <>
+            <Text style={styles.title}>{post.title}</Text>
+            <Text style={styles.preview} numberOfLines={showFullText ? 0 : 3}>
+              {postContent}
+              {post.preview.length > 100 && !showFullText && (
+                <TouchableOpacity onPress={handleShowMore}>
+                  <Text style={styles.showMore}>Показать еще</Text>
+                </TouchableOpacity>
+              )}
+            </Text>
+          </>
         )}
-        
+
         <View style={styles.footer}>
           <Text style={styles.metrics}>❤️ {post.likes}</Text>
           <Text style={[styles.metrics, { marginLeft: tokens.spacing.md }]}>💬 {post.comments}</Text>
@@ -39,17 +58,19 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: tokens.spacing.md,
+    paddingHorizontal: tokens.spacing.md,
+    paddingTop: 12,
+    paddingBottom: tokens.spacing.md,
   },
   avatar: {
-    width: 32,
-    height: 32,
+    width: 40,
+    height: 40,
     borderRadius: tokens.radius.round,
     backgroundColor: tokens.colors.surface,
   },
   authorName: {
-    marginLeft: tokens.spacing.sm,
-    fontWeight: '600',
+    marginLeft: 12,
+    fontWeight: '700',
     fontSize: 15,
   },
   cover: {
@@ -58,12 +79,24 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.surface,
   },
   content: {
-    padding: tokens.spacing.md,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
+  },
+  title: {
+    fontSize: 18,
+    lineHeight: 26,
+    fontWeight: 700,
+    marginBottom: tokens.spacing.sm,
   },
   preview: {
-    fontSize: 14,
+    fontSize: 15,
     color: tokens.colors.primary,
     lineHeight: 20,
+  },
+  showMore: {
+    color: tokens.colors.brand,
+    fontSize: 15,
+    fontWeight: 500,
   },
   footer: {
     flexDirection: 'row',

@@ -5,11 +5,14 @@ import LockedPost from "../../../shared/ui/LockedPost";
 import { useState } from "react";
 import LikeButton from "../../../shared/ui/LikeButton";
 import { likePost } from "../api/feedApi";
+import CommentButton from "@/shared/ui/CommentButton";
+import CommentsSection from "./CommentsSection";
 
 export default function PostCard({ post }: { post: Post }) {
   const [showFullText, setShowFullText] = useState(false);
   const [isLiked, setIsLiked] = useState(post.isLiked);
   const [likes, setLikes] = useState(post.likes);
+  const [showComments, setShowComments] = useState(false);
 
   const handleShowMore = () => {
     setShowFullText(true);
@@ -63,9 +66,13 @@ export default function PostCard({ post }: { post: Post }) {
             isLiked={isLiked}
             onPress={handleLike}
           />
-          <Text style={styles.metrics}>💬 {post.comments}</Text>
+          <CommentButton 
+            count={post.comments} 
+            onPress={() => setShowComments(!showComments)} 
+          />
         </View>
       </View>
+      {showComments && <CommentsSection postId={post.id} totalCount={post.comments} />}
     </View>
   );
 }
@@ -92,6 +99,7 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     fontWeight: '700',
     fontSize: 15,
+    color: tokens.colors.blackText,
   },
   cover: {
     width: '100%',

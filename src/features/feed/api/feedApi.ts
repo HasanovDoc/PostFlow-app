@@ -18,6 +18,14 @@ type FeedResponse = {
   nextCursor?: string;
 };
 
+export type Comment = {
+  id: string;
+  postId: string;
+  text: string;
+  author: { name: string; avatar: string };
+  createdAt: string;
+};
+
 export async function fetchFeed(cursor?: string): Promise<FeedResponse> {
   const response = await apiFetch("/posts", {
     params: { cursor, limit: 10 }
@@ -48,5 +56,32 @@ export async function fetchFeed(cursor?: string): Promise<FeedResponse> {
 export async function likePost(postId: string): Promise<void> {
   await apiFetch(`/posts/${postId}/like`, {
     method: 'POST'
+  });
+}
+
+export async function fetchComments(postId: string, cursor?: string) {
+  const response = await apiFetch(`/posts/${postId}/comments`, {
+    params: { cursor, limit: 20 }
+  });
+  return {
+    items: response.data.comments.map((c: any) => ({
+      id: c.id,
+      postId: c.postId,
+      text: c.text,
+      author: {
+        name: c.author.displayName,
+        avatar: c.author.avatarUrl
+      },
+      createdAt: c.createdAt
+    })),
+    nextCursor: response.data.nextCursor
+  };
+}
+
+export async function sendComment(postId: string, text: string) {
+  return apiFetch(`/posts/${postId}/comments`, {
+    method: 'POST',
+    // В apiFetch нужно будет добавить поддержку body, если её нет
+    // Либо передать в теле запроса через fetch внутри apiFetch
   });
 }

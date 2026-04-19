@@ -1,5 +1,6 @@
 export const tokens = {
   colors: {
+    blackText: '#111416',
     primary: '#000000',
     secondary: '#666666',
     background: '#FFFFFF',

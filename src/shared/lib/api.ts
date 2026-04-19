@@ -1,4 +1,5 @@
 export const BASE_URL = "https://k8s.mectest.ru/test-app";
+export const WS_URL = "wss://k8s.mectest.ru/test-app/ws";
 const TOKEN = "7aa32044-6380-4547-817a-245842817f5a";
 
 export async function apiFetch(path: string, options?: { method?: string; params?: Record<string, any> }) {

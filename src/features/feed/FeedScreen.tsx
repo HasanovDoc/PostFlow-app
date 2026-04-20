@@ -39,6 +39,13 @@ export const FeedScreen = observer(() => {
     }
   }, [isFetchingNextPage, hasNextPage, fetchNextPage]);
 
+  if (isLoading) {
+    return (
+      <View style={styles.loader}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
   if (isError) return <ErrorView onRetry={refetch} />;
 
   return (
@@ -72,6 +79,11 @@ export const FeedScreen = observer(() => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#F5F8FD',
+  },
+  loader: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   }
 });

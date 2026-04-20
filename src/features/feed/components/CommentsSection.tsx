@@ -5,6 +5,7 @@ import { fetchComments, Comment, sendComment } from '../api/feedApi';
 import Input from '../../../shared/ui/Input';
 import { WS_URL } from '../../../shared/lib/api';
 import PostCard from './PostCard';
+import ErrorView from '@/shared/ui/ErrorView';
 
 type SortOrder = 'new' | 'old';
 
@@ -17,6 +18,7 @@ export default function CommentsSection({
   totalCount: number,
   postData: any
 }) {
+  const [isError, setIsError] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [commentText, setCommentText] = useState('');
@@ -28,6 +30,8 @@ export default function CommentsSection({
 
   const loadComments = async (cursor?: string) => {
     try {
+      setIsError(false);
+      if (!cursor) setIsLoading(true);
       const data = await fetchComments(postId, cursor);
       
       if (cursor) {
@@ -37,11 +41,16 @@ export default function CommentsSection({
       }
       setNextCursor(data.nextCursor);
     } catch (e) {
+      if (!cursor) setIsError(true);
       console.error(e);
     } finally {
       setIsLoading(false);
       setIsFetchingMore(false);
     }
+  };
+
+  const handleRetry = () => {
+    loadComments();
   };
 
   useEffect(() => {
@@ -124,7 +133,7 @@ export default function CommentsSection({
   );
 
   if (isLoading) return <ActivityIndicator style={{ margin: 20 }} color={tokens.colors.brand} />;
-
+  if (isError) return <ErrorView onRetry={handleRetry} />;
   return (
     <KeyboardAvoidingView 
       style={{ flex: 1 }}

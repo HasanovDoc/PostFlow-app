@@ -48,14 +48,29 @@ export default function CommentsSection({
     loadComments();
     const socket = new WebSocket(WS_URL);
     ws.current = socket;
-
+    
     socket.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
-        if (data.type === 'new_comment' && data.payload) {
+
+        if (data.type === 'comment_added' && data.comment) {
+          const raw = data.comment;
+          if (raw.postId !== postId) return;
+
+          const newComment: Comment = {
+            id: raw.id,
+            postId: raw.postId,
+            text: raw.text,
+            createdAt: raw.createdAt,
+            author: {
+              name: raw.author?.displayName || 'Аноним',
+              avatar: raw.author?.avatarUrl
+            }
+          };
+
           setComments(prev => {
-            if (prev.some(c => c.id === data.payload.id)) return prev;
-            return [data.payload, ...prev];
+            if (prev.some(c => c?.id === newComment.id)) return prev;
+            return [newComment, ...prev];
           });
         }
       } catch (err) {
@@ -112,15 +127,16 @@ export default function CommentsSection({
 
   return (
     <KeyboardAvoidingView 
-      style={{ flex: 1 }} 
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0} 
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 55}
     >
       <View style={styles.container}>
         <FlatList
           data={sortedComments}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
+          contentContainerStyle={{ paddingBottom: 20 }}
           ListHeaderComponent={
             <View>
               <PostCard post={postData} />
